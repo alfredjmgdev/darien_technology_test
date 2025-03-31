@@ -14,7 +14,12 @@ import {
 import { useSpace } from "../context/SpaceContext";
 import { useAuth } from "../context/AuthContext";
 import Header from "../components/Header";
-import { formatDateForInput, formatTimeForInput } from "../utils/dateUtils";
+import {
+  formatDateForInput,
+  formatTimeForInput,
+  formatISOTimeForInput,
+} from "../utils/dateUtils";
+import { addHours } from "date-fns";
 
 const ReservationFormContent = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,51 +35,21 @@ const ReservationFormContent = () => {
   } = useReservation();
   const { spaces, getSpaces, loading: spaceLoading } = useSpace();
   const [error, setError] = useState<string | null>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const isEditMode = !!id;
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        await getSpaces();
-
-        if (isEditMode && id) {
-          const reservation = await getReservationById(parseInt(id, 10));
-          if (reservation) {
-            const reservationDate = new Date(reservation.reservationDate);
-            const startTime = new Date(reservation.startTime);
-            const endTime = new Date(reservation.endTime);
-
-            formik.setValues({
-              spaceId: reservation.spaceId,
-              date: formatDateForInput(reservationDate),
-              startTime: formatTimeForInput(startTime),
-              endTime: formatTimeForInput(endTime),
-            });
-          }
-        } else if (spaceIdParam) {
-          formik.setFieldValue("spaceId", parseInt(spaceIdParam, 10));
-        }
-      } catch (err) {
-        setError("Failed to load data");
-        console.error(err);
-      }
-    };
-
-    fetchData();
-  }, [id, spaceIdParam]);
 
   const formik = useFormik({
     initialValues: {
       spaceId: spaceIdParam ? parseInt(spaceIdParam, 10) : 0,
-      date: formatDateForInput(new Date()),
-      startTime: "09:00",
-      endTime: "10:00",
+      reservationDate: formatDateForInput(new Date()),
+      startTime: formatTimeForInput(new Date()),
+      endTime: formatTimeForInput(addHours(new Date(), 1)),
     },
     validationSchema: Yup.object({
       spaceId: Yup.number()
         .required("Space is required")
         .positive("Please select a space"),
-      date: Yup.string()
+      reservationDate: Yup.string()
         .required("Date is required")
         .test("is-not-past", "Date cannot be in the past", (value) => {
           const today = new Date().toISOString().split("T")[0];
@@ -102,9 +77,9 @@ const ReservationFormContent = () => {
         const reservationData = {
           spaceId: values.spaceId,
           userEmail: user.email,
-          reservationDate: values.date,
-          startTime: `${values.date}T${values.startTime}:00`,
-          endTime: `${values.date}T${values.endTime}:00`,
+          reservationDate: values.reservationDate,
+          startTime: `${values.reservationDate}T${values.startTime}:00`,
+          endTime: `${values.reservationDate}T${values.endTime}:00`,
         };
 
         if (isEditMode && id) {
@@ -140,6 +115,34 @@ const ReservationFormContent = () => {
       }
     },
   });
+
+  useEffect(() => {
+    if (dataLoaded) return;
+
+    const fetchData = async () => {
+      try {
+        await getSpaces();
+
+        if (isEditMode && id) {
+          const reservation = await getReservationById(parseInt(id, 10));
+          if (reservation) {
+            formik.setValues({
+              spaceId: reservation.spaceId,
+              reservationDate: reservation.reservationDate.split("T")[0],
+              startTime: formatISOTimeForInput(reservation.startTime),
+              endTime: formatISOTimeForInput(reservation.endTime),
+            });
+          }
+        }
+        setDataLoaded(true);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setError("Failed to load data");
+      }
+    };
+
+    fetchData();
+  }, [id, isEditMode, getSpaces, getReservationById, dataLoaded, spaceIdParam]);
 
   const loading = reservationLoading || spaceLoading;
 
@@ -187,20 +190,21 @@ const ReservationFormContent = () => {
 
             <div className="mb-4">
               <label
-                htmlFor="date"
+                htmlFor="reservationDate"
                 className="block text-gray-700 font-medium mb-2"
               >
                 Date
               </label>
               <input
                 type="date"
-                id="date"
-                {...formik.getFieldProps("date")}
+                id="reservationDate"
+                {...formik.getFieldProps("reservationDate")}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {formik.touched.date && formik.errors.date ? (
+              {formik.touched.reservationDate &&
+              formik.errors.reservationDate ? (
                 <div className="text-red-600 text-sm mt-1">
-                  {formik.errors.date}
+                  {formik.errors.reservationDate}
                 </div>
               ) : null}
             </div>

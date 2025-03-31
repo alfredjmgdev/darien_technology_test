@@ -17,10 +17,36 @@ export class CreateReservationUseCase {
     spaceId: number,
     userEmail: string,
     reservationDate: Date,
-    startTime: Date,
-    endTime: Date,
+    startTime: Date | string,
+    endTime: Date | string,
   ): Promise<IApiResponse<{ id: number }>> {
     try {
+      // Parse dates correctly to avoid timezone issues
+      const parsedStartTime = parseTimeWithoutTimezoneShift(startTime);
+      const parsedEndTime = parseTimeWithoutTimezoneShift(endTime);
+
+      // Helper function to parse time strings without timezone shift
+      function parseTimeWithoutTimezoneShift(timeValue: Date | string): Date {
+        if (timeValue instanceof Date) {
+          return timeValue;
+        }
+
+        // For ISO string format (e.g., "2025-04-30T16:00:00")
+        const [datePart, timePart] = timeValue.split('T');
+        if (datePart && timePart) {
+          const [year, month, day] = datePart.split('-').map(Number);
+          const [hours, minutes, seconds] = timePart.split(':').map(Number);
+
+          // Create date with explicit UTC time to avoid timezone conversion
+          return new Date(
+            Date.UTC(year, month - 1, day, hours, minutes, seconds || 0),
+          );
+        }
+
+        // Fallback to regular parsing if format is unexpected
+        return new Date(timeValue);
+      }
+
       if (moment(reservationDate).isBefore(moment().startOf('day'))) {
         throw new HttpException(
           {
@@ -45,8 +71,8 @@ export class CreateReservationUseCase {
       const conflictingReservations =
         await this.reservationRepository.findBySpaceAndTimeRange(
           spaceId,
-          startTime,
-          endTime,
+          parsedStartTime,
+          parsedEndTime,
         );
 
       if (conflictingReservations.length > 0) {
@@ -88,8 +114,8 @@ export class CreateReservationUseCase {
         spaceId,
         userEmail,
         reservationDate,
-        startTime,
-        endTime,
+        startTime: parsedStartTime,
+        endTime: parsedEndTime,
         createdAt: new Date(),
       });
 

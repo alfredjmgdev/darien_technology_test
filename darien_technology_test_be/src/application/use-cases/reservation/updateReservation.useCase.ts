@@ -11,7 +11,11 @@ export class UpdateReservationUseCase {
 
   async execute(
     id: number,
-    data: { reservationDate?: Date; startTime?: Date; endTime?: Date },
+    data: {
+      reservationDate?: Date;
+      startTime?: Date | string;
+      endTime?: Date | string;
+    },
   ): Promise<IApiResponse<{ id: number }>> {
     try {
       const reservation = await this.reservationRepository.findById(id);
@@ -25,9 +29,43 @@ export class UpdateReservationUseCase {
         );
       }
 
-      if (data.startTime || data.endTime) {
-        const startTime = data.startTime || reservation.startTime;
-        const endTime = data.endTime || reservation.endTime;
+      // Parse dates correctly to avoid timezone issues
+      const parsedData = {
+        ...data,
+        reservationDate: data.reservationDate,
+        startTime: data.startTime
+          ? parseTimeWithoutTimezoneShift(data.startTime)
+          : undefined,
+        endTime: data.endTime
+          ? parseTimeWithoutTimezoneShift(data.endTime)
+          : undefined,
+      };
+
+      // Helper function to parse time strings without timezone shift
+      function parseTimeWithoutTimezoneShift(timeValue: Date | string): Date {
+        if (timeValue instanceof Date) {
+          return timeValue;
+        }
+
+        // For ISO string format (e.g., "2025-04-30T16:00:00")
+        const [datePart, timePart] = timeValue.split('T');
+        if (datePart && timePart) {
+          const [year, month, day] = datePart.split('-').map(Number);
+          const [hours, minutes, seconds] = timePart.split(':').map(Number);
+
+          // Create date with explicit UTC time to avoid timezone conversion
+          return new Date(
+            Date.UTC(year, month - 1, day, hours, minutes, seconds || 0),
+          );
+        }
+
+        // Fallback to regular parsing if format is unexpected
+        return new Date(timeValue);
+      }
+
+      if (parsedData.startTime || parsedData.endTime) {
+        const startTime = parsedData.startTime || reservation.startTime;
+        const endTime = parsedData.endTime || reservation.endTime;
 
         const conflictingReservations =
           await this.reservationRepository.findBySpaceAndTimeRange(
@@ -51,7 +89,9 @@ export class UpdateReservationUseCase {
       }
 
       const updatedReservation = await this.reservationRepository.update(id, {
-        ...data,
+        reservationDate: parsedData.reservationDate,
+        startTime: parsedData.startTime,
+        endTime: parsedData.endTime,
         updatedAt: new Date(),
       });
 

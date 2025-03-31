@@ -25,45 +25,49 @@ const ReservationDetailsContent = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Use useCallback to memoize the fetch function
   const fetchReservation = useCallback(async () => {
-    if (!id) return;
+    if (!id || isLoaded) return;
 
     try {
-      const fetchedReservation = await getReservationById(parseInt(id, 10));
-      if (fetchedReservation) {
-        setReservation(fetchedReservation);
+      const reservationData = await getReservationById(parseInt(id, 10));
+      if (reservationData) {
+        setReservation(reservationData);
 
         // Fetch space details
-        const space = await getSpaceById(fetchedReservation.spaceId);
-        if (space) {
-          setSpaceName(space.name);
+        const spaceData = await getSpaceById(reservationData.spaceId);
+        if (spaceData) {
+          setSpaceName(spaceData.name);
         }
+      } else {
+        setError("Reservation not found");
       }
     } catch (err) {
+      console.error("Error fetching reservation:", err);
       setError("Failed to load reservation details");
-      console.error(err);
+    } finally {
+      setIsLoaded(true);
     }
-  }, [id]);
+  }, [id, getReservationById, getSpaceById, isLoaded]);
 
   useEffect(() => {
     fetchReservation();
   }, [fetchReservation]);
 
   const handleDelete = async () => {
+    if (isDeleting || !id) return;
+
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      if (id) {
-        await deleteReservation(parseInt(id, 10));
-        navigate("/dashboard");
-      }
+      await deleteReservation(parseInt(id, 10));
+      navigate("/dashboard");
     } catch (err: any) {
       const errorMessage =
         err.response?.data?.message || "Failed to cancel reservation";
       setDeleteError(errorMessage);
-      setIsDeleteModalOpen(true);
     } finally {
       setIsDeleting(false);
     }
