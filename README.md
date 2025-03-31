@@ -20,41 +20,7 @@ A full-stack application designed for Reservation System, built with React + Vit
 
 For this it was used hexagonal architecture, with the following layers:
 
-darien_technology_test_be/
-│
-├── src/
-│ ├── domain/ # Domain Layer (Core Business Logic)
-│ │ ├── entities/ # Business Entities
-│ │ ├── interfaces/ # Interface Definitions
-│ │ │ ├── auth/
-│ │ │ ├── reservation/
-│ │ │ └── space/
-│ │ └── repositories/ # Repository Ports (Primary Ports)
-│ │
-│ ├── application/ # Application Layer (Use Cases)
-│ │ └── use-cases/ # Business Logic Implementation
-│ │ ├── reservation/
-│ │ ├── space/
-│ │ └── user/
-│ │
-│ ├── infrastructure/ # Infrastructure Layer (Adapters)
-│ │ ├── auth/ # Authentication Infrastructure
-│ │ ├── controllers/ # API Controllers (Primary Adapters)
-│ │ ├── database/ # Database Infrastructure
-│ │ │ ├── entities/ # ORM Entities
-│ │ │ ├── migrations/ # Database Migrations
-│ │ │ └── seeders/ # Database Seeders
-│ │ ├── dtos/ # Data Transfer Objects
-│ │ ├── modules/ # NestJS Modules
-│ │ └── repositories/ # Repository Implementations (Secondary Adapters)
-│ │
-│ ├── app.controller.ts # Main App Controller
-│ ├── app.service.ts # Main App Service
-│ ├── app.module.ts # Main App Module
-│ ├── constants.ts # Application Constants
-│ └── main.ts # Application Entry Point
-│
-└── package.json # Project Dependencies
+![alt text](image.png)
 
 #### Testing
 
