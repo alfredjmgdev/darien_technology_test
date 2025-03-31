@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: reservation-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: reservation_system
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-p$$MYSQL_ROOT_PASSWORD",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Service
+  backend:
+    build:
+      context: ./darien_technology_test_be
+      dockerfile: Dockerfile
+    container_name: reservation-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - ./darien_technology_test_be/.env
+    ports:
+      - "3001:3001"
+
+  # Frontend Service
+  frontend:
+    build:
+      context: ./darien_technology_test_fe
+      dockerfile: Dockerfile
+    container_name: reservation-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    env_file:
+      - ./darien_technology_test_fe/.env
+    ports:
+      - "5173:80"
+
+volumes:
+  mysql-data:
