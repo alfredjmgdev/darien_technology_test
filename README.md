@@ -20,7 +20,7 @@ A full-stack application designed for Reservation System, built with React + Vit
 
 For this it was used hexagonal architecture, with the following layers:
 
-![alt text](image.png)
+![alt text](readme_assets/image.png)
 
 #### Testing
 
