@@ -89,11 +89,13 @@ describe('CreateReservationUseCase', () => {
   });
 
   describe('execute', () => {
+    // Update dates to be in the future
+    const tomorrow = moment().add(1, 'day').startOf('day');
     const spaceId = 1;
     const userEmail = 'test@example.com';
-    const reservationDate = new Date('2023-01-01');
-    const startTime = new Date('2023-01-01T10:00:00');
-    const endTime = new Date('2023-01-01T12:00:00');
+    const reservationDate = tomorrow.toDate();
+    const startTime = moment(tomorrow).add(10, 'hours').toDate(); // 10:00 AM tomorrow
+    const endTime = moment(tomorrow).add(12, 'hours').toDate(); // 12:00 PM tomorrow
 
     it('should create a reservation successfully', async () => {
       // Arrange
@@ -104,9 +106,12 @@ describe('CreateReservationUseCase', () => {
       (
         mockReservationRepository.findByUserEmail as jest.Mock
       ).mockResolvedValue([]);
-      (mockReservationRepository.create as jest.Mock).mockResolvedValue(
-        mockReservation,
-      );
+      (mockReservationRepository.create as jest.Mock).mockResolvedValue({
+        ...mockReservation,
+        reservationDate,
+        startTime,
+        endTime,
+      });
 
       // Act
       const result = await useCase.execute(
@@ -136,6 +141,32 @@ describe('CreateReservationUseCase', () => {
           startTime,
           endTime,
         }),
+      );
+    });
+
+    it('should throw HttpException when reservation date is in the past', async () => {
+      // Arrange
+      const pastDate = moment().subtract(1, 'day').toDate();
+      const pastStartTime = moment(pastDate).add(10, 'hours').toDate();
+      const pastEndTime = moment(pastDate).add(12, 'hours').toDate();
+
+      // Act & Assert
+      await expect(
+        useCase.execute(
+          spaceId,
+          userEmail,
+          pastDate,
+          pastStartTime,
+          pastEndTime,
+        ),
+      ).rejects.toThrow(
+        new HttpException(
+          {
+            statusCode: HttpStatus.BAD_REQUEST,
+            message: 'Reservation date cannot be in the past',
+          },
+          HttpStatus.BAD_REQUEST,
+        ),
       );
     });
 
@@ -170,7 +201,7 @@ describe('CreateReservationUseCase', () => {
       (mockSpaceRepository.findById as jest.Mock).mockResolvedValue(mockSpace);
       (
         mockReservationRepository.findBySpaceAndTimeRange as jest.Mock
-      ).mockResolvedValue([mockReservation]);
+      ).mockResolvedValue([{ ...mockReservation, startTime, endTime }]);
 
       // Act & Assert
       await expect(
@@ -198,7 +229,6 @@ describe('CreateReservationUseCase', () => {
       expect(mockReservationRepository.create).not.toHaveBeenCalled();
     });
 
-    // New test for maximum reservations per week
     it('should throw HttpException when user has reached maximum reservations per week', async () => {
       // Arrange
       (mockSpaceRepository.findById as jest.Mock).mockResolvedValue(mockSpace);
@@ -208,10 +238,14 @@ describe('CreateReservationUseCase', () => {
 
       // Create 3 reservations for the current week
       const weekReservations = [
-        { ...mockReservation, id: 1 },
-        { ...mockReservation, id: 2 },
-        { ...mockReservation, id: 3 },
+        { ...mockReservation, id: 1, reservationDate, startTime, endTime },
+        { ...mockReservation, id: 2, reservationDate, startTime, endTime },
+        { ...mockReservation, id: 3, reservationDate, startTime, endTime },
       ];
+
+      // Mock the week start/end dates based on the reservation date
+      const weekStart = moment(reservationDate).startOf('week').toDate();
+      const weekEnd = moment(reservationDate).endOf('week').toDate();
 
       (
         mockReservationRepository.findByUserEmail as jest.Mock
@@ -230,8 +264,7 @@ describe('CreateReservationUseCase', () => {
         new HttpException(
           {
             statusCode: HttpStatus.BAD_REQUEST,
-            message:
-              'You have reached the maximum number of reservations allowed per week (3)',
+            message: `You have reached the maximum number of reservations allowed for the week starting on ${moment(weekStart).format('YYYY-MM-DD')} (3)`,
           },
           HttpStatus.BAD_REQUEST,
         ),
@@ -243,8 +276,6 @@ describe('CreateReservationUseCase', () => {
       ).toHaveBeenCalledWith(spaceId, startTime, endTime);
 
       // Verify findByUserEmail was called with the correct week range
-      const weekStart = moment().startOf('week').toDate();
-      const weekEnd = moment().endOf('week').toDate();
       expect(mockReservationRepository.findByUserEmail).toHaveBeenCalledWith(
         userEmail,
         weekStart,
@@ -256,7 +287,7 @@ describe('CreateReservationUseCase', () => {
 
     it('should throw HttpException when end time is before start time', async () => {
       // Arrange
-      const invalidEndTime = new Date('2023-01-01T09:00:00'); // Before start time
+      const invalidEndTime = moment(tomorrow).add(9, 'hours').toDate(); // 9:00 AM (before 10:00 AM)
 
       // Act & Assert
       await expect(
@@ -313,7 +344,6 @@ describe('CreateReservationUseCase', () => {
       expect(mockReservationRepository.create).toHaveBeenCalled();
     });
 
-    // New test for non-Error instance in error handling
     it('should throw HttpException when repository throws a non-Error value', async () => {
       // Arrange
       const nonErrorValue = 'This is a string error';

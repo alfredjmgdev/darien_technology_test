@@ -74,7 +74,12 @@ const ReservationFormContent = () => {
       spaceId: Yup.number()
         .required("Space is required")
         .positive("Please select a space"),
-      date: Yup.string().required("Date is required"),
+      date: Yup.string()
+        .required("Date is required")
+        .test("is-not-past", "Date cannot be in the past", (value) => {
+          const today = new Date().toISOString().split("T")[0];
+          return value >= today;
+        }),
       startTime: Yup.string().required("Start time is required"),
       endTime: Yup.string()
         .required("End time is required")

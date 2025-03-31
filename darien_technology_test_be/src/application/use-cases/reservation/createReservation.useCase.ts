@@ -21,6 +21,16 @@ export class CreateReservationUseCase {
     endTime: Date,
   ): Promise<IApiResponse<{ id: number }>> {
     try {
+      if (moment(reservationDate).isBefore(moment().startOf('day'))) {
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.BAD_REQUEST,
+            message: 'Reservation date cannot be in the past',
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const space = await this.spaceRepository.findById(spaceId);
       if (!space) {
         throw new HttpException(
@@ -50,8 +60,9 @@ export class CreateReservationUseCase {
         );
       }
 
-      const weekStart = moment().startOf('week').toDate();
-      const weekEnd = moment().endOf('week').toDate();
+      const weekStart = moment(reservationDate).startOf('week').toDate();
+      const weekEnd = moment(reservationDate).endOf('week').toDate();
+
       const userReservationsThisWeek =
         await this.reservationRepository.findByUserEmail(
           userEmail,
@@ -59,12 +70,15 @@ export class CreateReservationUseCase {
           weekEnd,
         );
 
+      console.log(weekStart);
+      console.log(weekEnd);
+      console.log(userReservationsThisWeek.length);
+
       if (userReservationsThisWeek.length >= 3) {
         throw new HttpException(
           {
             statusCode: HttpStatus.BAD_REQUEST,
-            message:
-              'You have reached the maximum number of reservations allowed per week (3)',
+            message: `You have reached the maximum number of reservations allowed for the week starting on ${moment(weekStart).format('YYYY-MM-DD')} (3)`,
           },
           HttpStatus.BAD_REQUEST,
         );

@@ -56,7 +56,7 @@ Or run the following command to see the coverage of the tests:
 ## 📚 Documentation
 
 It can be found the backend API documentation after running the application on this link:
-http://localhost:3000/api/
+http://localhost:3001/api/
 
 ## Notes
 

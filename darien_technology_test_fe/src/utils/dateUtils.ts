@@ -1,4 +1,16 @@
 export const formatDate = (dateString: string): string => {
+  // If the string doesn't contain time information, use it directly
+  if (dateString.length === 10 && dateString.includes("-")) {
+    const [year, month, day] = dateString.split("-");
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  // Otherwise, handle as before
   const date = new Date(dateString);
   return date.toLocaleDateString("en-US", {
     year: "numeric",
